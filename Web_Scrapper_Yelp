@@ -1,0 +1,158 @@
+[Summery]
+
+I scraped restaurant data from yelp to analyze thier price, food type, popularity and region. The main focus on this project is to show how to use BeautifulSoup to do web scraping. From 244 obs, I discover that Italian and American food occupy larger market share in high price restaurants while the price of Asian food and Breakfast tend to be more accessible by ordinary consumers. 
+
+# Web Scraping with BeautifulSoup
+
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+from time import sleep
+from time import time
+from random import randint
+from IPython.core.display import clear_output
+import re
+
+def scrape_price(classname,symbol):
+    attribute_tags = soup.select(classname)
+    attribute = []
+    for i in attribute_tags:
+        i = i.get_text(strip=True)
+        if symbol not in i: 
+            attribute.append('')
+        else:
+            pattern = re.compile(r'\$+')
+            i_new = re.search(pattern, i).group(0)
+            attribute.append(i_new)
+    return attribute
+
+def scrape_phone(classname,symbol):
+    attribute_tags = soup.select(classname)
+    attribute = []
+    for i in attribute_tags:
+        i = i.get_text(strip=True)
+        if symbol not in i: 
+            attribute.append('')
+        else:
+            i_new = i[12:26]
+            attribute.append(i_new)
+    return attribute
+
+def scrape_attribute(classname):
+    attribute_tags = soup.select(classname)
+    attribute = [i.get_text(strip=True) for i in attribute_tags]
+    return attribute
+
+def scrape_review(classname):
+    attribute_tags = soup.select(classname)
+    attribute = [i.get_text(strip=True) for i in attribute_tags]
+    new_review=[]
+    for i in attribute:
+        i = i.split()[0]
+        i = int(i)
+        new_review.append(i)
+    return new_review
+
+price_list=[]
+phone_list=[]
+type_list=[]
+name_list=[]
+neighbor_list=[]
+review_list=[]
+for i in ['180','240','300','360']:
+    page = requests.get("https://www.yelp.com/search?find_loc=Civic+Center,+Manhattan,+NY&start="+i+"&cflt=restaurants")
+    soup = BeautifulSoup(page.content, 'html.parser')
+    price_list=price_list+scrape_price(".price-category","$")
+    phone_list=phone_list+scrape_phone(".secondary-attributes","number")
+    type_list=type_list+scrape_attribute(".category-str-list")
+    name_list=name_list+scrape_attribute(".biz-name")
+    neighbor_list=neighbor_list+scrape_attribute(".secondary-attributes")
+    review_list=review_list+scrape_review(".review-count")
+
+restaurant = pd.DataFrame({
+        "name": name_list, 
+        "phone": phone_list, 
+        "category": type_list,
+        "price": price_list,
+    "review": review_list,})
+restaurant
+
+# Simple Data Analysis
+
+restaurant['low_price'] = restaurant['price'].map({'$':1, '$$':0, '$$$':0}).fillna(0)
+restaurant['mid_price'] = restaurant['price'].map({'$':0, '$$':1, '$$$':0}).fillna(0)
+restaurant['high_price'] = restaurant['price'].map({'$':0, '$$':0, '$$$':1}).fillna(0)
+
+for i in restaurant['category']:
+    x=i.split(',')
+    type.append(x)
+type
+
+new_type=[]
+for i in type:
+    new_type = new_type+i
+
+df=pd.DataFrame(new_type)
+
+pop_type = df[0].value_counts()[:16]
+
+restaurant.groupby('category')['review'].mean().sort_values(ascending=False)
+
+restaurant.head()
+
+count = 0 
+for i in restaurant['category']:
+    if 'American' in i:
+        restaurant['American'].iloc[count]=1
+    else:
+        restaurant['American'].iloc[count]=0
+    count+=1
+    
+
+count = 0 
+for i in restaurant['category']:
+    if 'Chinese' in i:
+        restaurant['Chinese'].iloc[count]=1
+    else:
+        restaurant['Chinese'].iloc[count]=0
+    count+=1
+
+count = 0 
+for i in restaurant['category']:
+    if 'Japanese' in i:
+        restaurant['Japanese'].iloc[count]=1
+    else:
+        restaurant['Japanese'].iloc[count]=0
+    count+=1
+
+count = 0 
+for i in restaurant['category']:
+    if 'Italian' in i:
+        restaurant['Italian'].iloc[count]=1
+    else:
+        restaurant['Italian'].iloc[count]=0
+    count+=1
+
+count = 0 
+for i in restaurant['category']:
+    if 'Breakfast' in i:
+        restaurant['Breakfast'].iloc[count]=1
+    else:
+        restaurant['Breakfast'].iloc[count]=0
+    count+=1
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+restaurant['price_new'] = restaurant['price'].map({'':'No Info', '$':'low price', '$$':'mid price', '$$$':'high price', '$$$$':'very high price'})
+
+restaurant.loc[restaurant['American']==1, 'type'] = 'American'
+
+restaurant.loc[restaurant['Japanese']==1, 'type'] = 'Japanese'
+restaurant.loc[restaurant['Chinese']==1, 'type'] = 'Chinese'
+restaurant.loc[restaurant['Italian']==1, 'type'] = 'Italian'
+restaurant.loc[restaurant['Breakfast']==1, 'type'] = 'Breakfast'
+
+restaurant.head(10)
+
+sns.barplot('price_new','review',data=restaurant,hue='type',order=['No Info','low price','mid price','high price','very high price'],errwidth=None)
